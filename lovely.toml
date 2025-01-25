@@ -2,3 +2,15 @@
 version = "0.1"
 dump_lua = true
 priority = 0
+
+[[patches]]
+[patches.copy]
+target = "globals.lua"
+position = "append"
+sources = [ "Init.lua" ]
+
+[[patches]]
+[patches.copy]
+target = "functions/common_events.lua"
+position = "append"
+sources = [ "Blind.lua", "Hooks.lua" ]

@@ -11,6 +11,199 @@ sources = [ "Init.lua" ]
 
 [[patches]]
 [patches.copy]
-target = "functions/common_events.lua"
+target = "blind.lua"
 position = "append"
-sources = [ "Blind.lua", "Hooks.lua" ]
+sources = [ "Hooks.lua" ]
+
+[[patches]]
+[patches.copy]
+target = "functions/button_callbacks.lua"
+position = "append"
+sources = [ "UI_Changes.lua" ]
+
+[[patches]]
+[patches.copy]
+target = "functions/button_callbacks.lua"
+position = "append"
+sources = [ "Button_Changes.lua" ]
+
+[[patches]]
+[patches.pattern]
+target = "functions/button_callbacks.lua"
+pattern = '''
+G.STATE = G.STATES.SHOP
+G.GAME.shop_free = nil
+'''
+position = "at"
+payload = '''
+G.STATE = G.STATES.BLIND_SELECT
+G.GAME.shop_free = nil
+'''
+match_indent = true
+overwrite = true
+
+[[patches]]
+[patches.pattern]
+target = "functions/button_callbacks.lua"
+pattern = "if e.config.id == G.GAME.blind_on_deck then"
+position = "at"
+payload = "if e.config.id == G.GAME.blind_on_deck or true then"
+match_indent = true
+overwrite = true
+
+[[patches]]
+[patches.pattern]
+target = "functions/button_callbacks.lua"
+pattern = "_top_button.config.colour = G.C.FILTER"
+position = "at"
+payload = "--_top_button.config.colour = G.C.FILTER"
+match_indent = true
+overwrite = true
+
+[[patches]]
+[patches.pattern]
+target = "functions/button_callbacks.lua"
+pattern = '''
+if (e.config.ref_table.deck ~= 'on' and e.config.id == G.GAME.blind_on_deck) or
+   (e.config.ref_table.deck ~= 'off' and e.config.id ~= G.GAME.blind_on_deck) then
+'''
+position = "at"
+payload = "if (e.config.ref_table.deck ~= 'on') then"
+match_indent = true
+overwrite = true
+
+[[patches]]
+[patches.pattern]
+target = "functions/state_events.lua"
+pattern = "G.GAME.round_resets.blind_states.Big = 'Defeated'"
+position = "at"
+payload = '''
+   G.GAME.round_resets.blind_states.Big = 'Defeated'
+elseif G.GAME.round_resets.blind_states.Roaming == 'Current' then
+   G.GAME.round_resets.blind_states.Roaming = 'Defeated'
+'''
+match_indent = true
+overwrite = true
+
+[[patches]]
+[patches.regex]
+target = "functions/state_events.lua"
+pattern = '''G\.GAME\.blind\:get_type\(\) \=\= \'Boss\''''
+position = 'at'
+payload = "G.GAME.round_resets.blind_states.Boss == 'Current'"
+
+[[patches]]
+[patches.regex]
+target = "card.lua"
+pattern = '''\(100\-G\.GAME\.discount_percent\)\/100'''
+position = 'at'
+payload = "(100-G.GAME.discount_percent)/51"
+
+[[patches]]
+[patches.regex]
+target = "card.lua"
+pattern = '''math\.max\(1, math\.floor\(self\.cost\/2\)\)'''
+position = 'at'
+payload = "math.max(1, math.floor(self.cost/4))"
+
+[[patches]]
+[patches.pattern]
+target = "functions/common_events.lua"
+pattern = "local dollar_row = 0"
+position = "after"
+payload = "if RF and RF.open and RF.open._add_reward_tag then RF.open._add_reward_tag(config) end"
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = "functions/button_callbacks.lua"
+pattern = "ease_dollars(G.GAME.current_round.dollars)"
+position = "after"
+payload = "if RF and RF.open and RF.open._get_reward_tag then RF.open._get_reward_tag() end"
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = "functions/state_events.lua"
+pattern = '''
+    blhash = 'B'
+else
+'''
+position = 'at'
+payload = '''
+    blhash = 'B'
+elseif G.GAME.blind_on_deck == 'Roaming' then
+    G.GAME.round_resets.blind_states.Roaming = 'Current'
+    G.GAME.current_boss_streak = 0
+    blhash = 'R'
+else
+'''
+match_indent = true
+overwrite = true
+
+[[patches]]
+[patches.pattern]
+target = "functions/misc_functions.lua"
+pattern = "joker_slots = 5,"
+position = 'at'
+payload = "joker_slots = 2,"
+match_indent = true
+overwrite = true
+
+[[patches]]
+[patches.pattern]
+target = "functions/misc_functions.lua"
+pattern = "consumable_slots = 2,"
+position = 'at'
+payload = "consumable_slots = 1,"
+match_indent = true
+overwrite = true
+
+[[patches]]
+[patches.pattern]
+target = "game.lua"
+pattern = "G.blind_select.alignment.offset.x = 0"
+position = 'after'
+payload = '''
+G.extra_blind_options = UIBox{
+   definition = RF.open._create_shop_skip_options(),
+   config = {align="bmi", offset = {x = 75, y = G.deck.T.y / 2 - G.blind_select.T.h}, major = G.blind_select, bond = 'Weak'}
+}
+G.extra_blind_options.alignment.offset.x = 50 + G.blind_select.T.w / 2
+'''
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = "functions/button_callbacks.lua"
+pattern = "add_tag(_tag.config.ref_table)"
+position = "at"
+payload = "--add_tag(_tag.config.ref_table)"
+match_indent = true
+overwrite = true
+
+[[patches]]
+[patches.pattern]
+target = "functions/button_callbacks.lua"
+pattern = "if G.blind_select and not G.blind_select.alignment.offset.py then"
+position = "after"
+payload = "G.extra_blind_options.alignment.offset.x = 75"
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = "functions/button_callbacks.lua"
+pattern = "G.blind_select.alignment.offset.py = nil"
+position = "after"
+payload = "G.extra_blind_options.alignment.offset.x = 50 + G.blind_select.T.w / 2"
+match_indent = true
+
+[[patches]]
+[patches.pattern]
+target = "functions/button_callbacks.lua"
+pattern = "G.blind_select.alignment.offset.x = 0"
+position = "after"
+payload = "G.extra_blind_options.alignment.offset.x = 75"
+match_indent = true
+
+

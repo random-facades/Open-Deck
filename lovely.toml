@@ -81,6 +81,8 @@ payload = '''
    G.GAME.round_resets.blind_states.Big = 'Defeated'
 elseif G.GAME.round_resets.blind_states.Roaming == 'Current' then
    G.GAME.round_resets.blind_states.Roaming = 'Defeated'
+elseif G.GAME.round_resets.blind_states.Roaming2 == 'Current' then
+   G.GAME.round_resets.blind_states.Roaming2 = 'Defeated'
 '''
 match_indent = true
 overwrite = true
@@ -136,6 +138,10 @@ elseif G.GAME.blind_on_deck == 'Roaming' then
     G.GAME.round_resets.blind_states.Roaming = 'Current'
     G.GAME.current_boss_streak = 0
     blhash = 'R'
+elseif G.GAME.blind_on_deck == 'Roaming2' then
+    G.GAME.round_resets.blind_states.Roaming2 = 'Current'
+    G.GAME.current_boss_streak = 0
+    blhash = 'R2'
 else
 '''
 match_indent = true
@@ -162,6 +168,30 @@ overwrite = true
 [[patches]]
 [patches.pattern]
 target = "game.lua"
+pattern = '''
+ante = 1,
+blind_ante = 1,
+'''
+position = 'at'
+payload = '''
+ante = 4,
+blind_ante = 4,
+'''
+match_indent = true
+overwrite = true
+
+[[patches]]
+[patches.pattern]
+target = "game.lua"
+pattern = "win_ante = 8,"
+position = 'at'
+payload = "win_ante = 12,"
+match_indent = true
+overwrite = true
+
+[[patches]]
+[patches.pattern]
+target = "game.lua"
 pattern = "G.blind_select.alignment.offset.x = 0"
 position = 'after'
 payload = '''
@@ -172,15 +202,6 @@ G.extra_blind_options = UIBox{
 G.extra_blind_options.alignment.offset.x = 50 + G.blind_select.T.w / 2
 '''
 match_indent = true
-
-[[patches]]
-[patches.pattern]
-target = "functions/button_callbacks.lua"
-pattern = "add_tag(_tag.config.ref_table)"
-position = "at"
-payload = "--add_tag(_tag.config.ref_table)"
-match_indent = true
-overwrite = true
 
 [[patches]]
 [patches.pattern]

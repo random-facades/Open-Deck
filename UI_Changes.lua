@@ -58,7 +58,27 @@ function create_UIBox_blind_choice(type, small_view)
          n = G.UIT.R,
          config = { id = type, align = "tm", func = 'blind_choice_handler', minh = not small_view and 10 or nil, ref_table = { deck = nil, run_info = small_view }, r = 0.1, padding = 0.05 },
          nodes = {
-            RF.open._create_Blind_UIBox('Roaming', small_view)
+            RF.open._create_Blind_UIBox('Roaming', small_view),
+            {
+               n = G.UIT.R,
+               config = { id = 'blind_extras', align = "cm" },
+               nodes = {
+                  {
+                     n = G.UIT.R,
+                     config = { align = "cm" },
+                     nodes = {
+                        {
+                           n = G.UIT.R,
+                           config = { align = 'tm', minh = 0.65 },
+                           nodes = {
+                              { n = G.UIT.T, config = { text = localize('k_or'), scale = 0.55, colour = G.C.WHITE, shadow = true } },
+                           }
+                        },
+                        RF.open._create_Blind_UIBox('Roaming2', small_view)
+                     }
+                  },
+               }
+            }
          }
       }
    else
@@ -81,15 +101,17 @@ end
 
 function RF.open._create_Blind_UIBox(type, small_view)
    local blind_choice = {}
-   if type ~= 'Roaming' then
+   if type ~= 'Roaming' and type ~= 'Roaming2' then
       blind_choice.config = G.P_BLINDS[G.GAME.round_resets.blind_choices[type]]
+   else
+      blind_choice.config = G.P_BLINDS[G.GAME.round_resets.blind_choices['Boss']]
    end
    if G.GAME.round_resets.blind_states[type] ~= 'Current' then
       G.GAME.round_resets.blind_states[type] = 'Upcoming'
    end
 
    blind_choice.animation = AnimatedSprite(0, 0, 1.4, 1.4, G.ANIMATION_ATLAS['blind_chips'],
-      type ~= 'Roaming' and blind_choice.config.pos or { x = 0, y = 30 })
+      type ~= 'Roaming' and type ~= 'Roaming2' and blind_choice.config.pos or { x = 0, y = 30 })
    blind_choice.animation:define_draw_steps({
       { shader = 'dissolve', shadow_height = 0.05 },
       { shader = 'dissolve' }
@@ -103,21 +125,21 @@ function RF.open._create_Blind_UIBox(type, small_view)
    local loc_name = localize('k_unknown')
    local text_table = { localize('k_unknown') }
    local blind_amt = 0
-   if type ~= 'Roaming' then
+   if type ~= 'Roaming' and type ~= 'Roaming2' then
       loc_name = localize { type = 'name_text', key = blind_choice.config.key, set = 'Blind' }
       text_table = localize { type = 'raw_descriptions', key = blind_choice.config.key, set = 'Blind', vars = { localize(G.GAME.current_round.most_played_poker_hand, 'poker_hands') } }
-      blind_amt = get_blind_amount(G.GAME.round_resets.blind_ante) * G.GAME.starting_params.ante_scaling
+      blind_amt = G.GAME.starting_params.ante_scaling
       if type == 'Small' then
          local new_mult = blind_choice.config.mult * math.floor(10 * math.pow(1.1, G.GAME.RFOD_SETTINGS.small_attempts)) / 10
-         blind_amt = blind_amt * new_mult
+         blind_amt = blind_amt * get_blind_amount(1) * new_mult
       elseif type == 'Big' then
          local new_mult = blind_choice.config.mult * math.floor(10 * math.pow(1.1, G.GAME.RFOD_SETTINGS.big_attempts)) / 10
-         blind_amt = blind_amt * new_mult
+         blind_amt = blind_amt * get_blind_amount(1) * new_mult
       else
-         blind_amt = blind_amt * blind_choice.config.mult
+         blind_amt = blind_amt * get_blind_amount(G.GAME.round_resets.blind_ante) * blind_choice.config.mult
       end
    else
-      local new_ante = G.GAME.round_resets.blind_ante + G.GAME.RFOD_SETTINGS.roaming_attempts
+      local new_ante = type == 'Roaming' and G.GAME.RFOD_SETTINGS.roaming_attempts or G.GAME.RFOD_SETTINGS.roaming2_attempts
       local base = get_blind_amount(new_ante) * G.GAME.starting_params.ante_scaling
       local max = 1
       local min = 10
@@ -135,13 +157,19 @@ function RF.open._create_Blind_UIBox(type, small_view)
       end
       blind_amt = base * max
 
-      RF.open.ui_range.options = {}
-      RF.open.ui_range.options.max = base * max
-      RF.open.ui_range.options.min = base * min
+      local ui_data = type == 'Roaming' and RF.open.ui_range or RF.open.ui_range2
+
+      ui_data.options = {}
+      ui_data.options.max = base * max
+      ui_data.options.min = base * min
       for score, count in pairs(score_options) do
          local new_count = math.floor(math.sqrt(count))
          for i = 1, new_count do
-            table.insert(RF.open.ui_range.options, score)
+            if type == 'Roaming' then
+               table.insert(ui_data.options, score)
+            else
+               table.insert(ui_data.options, 1, score)
+            end
          end
       end
    end
@@ -159,8 +187,8 @@ function RF.open._create_Blind_UIBox(type, small_view)
       }
    end
 
-   local temp_text = localize { type = 'raw_descriptions', set = 'Edition', vars = { 1 }, key = (G.GAME.round_resets.blind_ante % 2 == 1) and 'e_negative' or 'e_negative_consumable' }
-       [1]
+   local key = type == 'Roaming' and 'e_negative' or 'e_negative_consumable'
+   local temp_text = localize { type = 'raw_descriptions', set = 'Edition', vars = { 1 }, key = key }[1]
 
    local t = {
       n = G.UIT.R,
@@ -234,7 +262,7 @@ function RF.open._create_Blind_UIBox(type, small_view)
                         n = G.UIT.R,
                         config = { align = "cm" },
                         nodes = {
-                           (type == 'Roaming' or type == 'Boss') and
+                           type == 'Boss' and
                            {
                               n = G.UIT.R,
                               config = { align = "cm", minh = 1.5 },
@@ -242,7 +270,7 @@ function RF.open._create_Blind_UIBox(type, small_view)
                                  { n = G.UIT.O, config = { object = blind_choice.animation } },
                               }
                            } or nil,
-                           text_table[1] and
+                           type == 'Boss' and text_table[1] and
                            {
                               n = G.UIT.R,
                               config = { align = "cm", minh = 0.2, padding = 0.05, minw = 2.9 },
@@ -268,10 +296,10 @@ function RF.open._create_Blind_UIBox(type, small_view)
                               nodes = {
                                  { n = G.UIT.O, config = { w = 0.5, h = 0.5, colour = G.C.BLUE, object = stake_sprite, hover = true, can_collide = false } },
                                  { n = G.UIT.B, config = { h = 0.1, w = 0.1 } },
-                                 type ~= 'Roaming' and
+                                 type ~= 'Roaming' and type ~= 'Roaming2' and
                                  { n = G.UIT.T, config = { text = number_format(blind_amt), scale = score_number_scale(0.9, blind_amt), colour = G.C.RED, shadow = true } }
                                  or
-                                 { n = G.UIT.T, config = { ref_table = RF.open, ref_value = 'display_value', scale = score_number_scale(0.9, blind_amt), colour = G.C.RED, shadow = true } }
+                                 { n = G.UIT.T, config = { ref_table = RF.open, ref_value = type == 'Roaming' and 'display_value' or 'display_value2', scale = score_number_scale(0.9, blind_amt), colour = G.C.RED, shadow = true } }
                               }
                            },
                            _reward and {
@@ -279,12 +307,10 @@ function RF.open._create_Blind_UIBox(type, small_view)
                               config = { align = "cm" },
                               nodes = {
                                  { n = G.UIT.T, config = { text = localize('ph_blind_reward'), scale = 0.35, colour = G.C.WHITE, shadow = true } },
-                                 type ~= 'Roaming' and
                                  { n = G.UIT.T, config = { text = string.rep(localize("$"), blind_choice.config.dollars) .. '+', scale = 0.35, colour = G.C.MONEY, shadow = true } }
-                                 or create_UIBox_blind_tag('Big', small_view)
                               }
                            } or nil,
-                           _reward and type == 'Boss' and
+                           _reward and (type == 'Roaming' or type == 'Roaming2') and
                            { n = G.UIT.R, config = { align = "cm" }, nodes = { { n = G.UIT.T, config = { text = temp_text, scale = 0.35, colour = G.C.MONEY, shadow = true } } } }
                            or nil
                         }
@@ -299,160 +325,69 @@ function RF.open._create_Blind_UIBox(type, small_view)
 end
 
 function RF.open._create_Ante_Up_notes()
-   local dt1 = DynaText({ string = { { string = localize('ph_up_ante_1'), colour = G.C.FILTER } }, colours = { G.C.BLACK }, scale = 0.55, silent = true, pop_delay = 4.5, shadow = true, bump = true, maxw = 3 })
-   local dt2 = DynaText({ string = { { string = localize('ph_up_ante_2'), colour = G.C.WHITE } }, colours = { G.C.CHANCE }, scale = 0.35, silent = true, pop_delay = 4.5, shadow = true, maxw = 3 })
-   local dt3 = DynaText({ string = { { string = localize('ph_up_ante_3'), colour = G.C.WHITE } }, colours = { G.C.CHANCE }, scale = 0.35, silent = true, pop_delay = 4.5, shadow = true, maxw = 3 })
-   local t =
-   {
-      n = G.UIT.R,
-      config = { align = "cm" },
-      nodes = {
-         {
-            n = G.UIT.R,
-            config = { align = "cm", padding = 0.07, r = 0.1, colour = { 0, 0, 0, 0.12 }, minw = 2.9 },
-            nodes = {
-               {
-                  n = G.UIT.R,
-                  config = { align = "cm" },
-                  nodes = {
-                     { n = G.UIT.O, config = { object = dt1 } },
-                  }
-               },
-               {
-                  n = G.UIT.R,
-                  config = { align = "cm" },
-                  nodes = {
-                     { n = G.UIT.O, config = { object = dt2 } },
-                  }
-               },
-               {
-                  n = G.UIT.R,
-                  config = { align = "cm" },
-                  nodes = {
-                     { n = G.UIT.O, config = { object = dt3 } },
-                  }
-               },
-            }
-         },
-      }
-   }
-   return t
+   local dt1 = DynaText({string = {{string = localize('ph_up_ante_1'), colour = G.C.FILTER}}, colours = {G.C.BLACK}, scale = 0.55, silent = true, pop_delay = 4.5, shadow = true, bump = true, maxw = 3})
+   local dt2 = DynaText({string = {{string = "Reset Shop Cost", colour = G.C.WHITE}},colours = {G.C.CHANCE}, scale = 0.35, silent = true, pop_delay = 4.5, shadow = true, maxw = 3})
+   local dt3 = DynaText({string = {{string = "Reset Skip Cost", colour = G.C.WHITE}},colours = {G.C.CHANCE}, scale = 0.35, silent = true, pop_delay = 4.5, shadow = true, maxw = 3})
+   local extras = {n=G.UIT.R, config={align = "cm"}, nodes={
+       {n=G.UIT.R, config={align = "cm", padding = 0.07, r = 0.1, colour = {0,0,0,0.12}, minw = 2.9}, nodes={
+         {n=G.UIT.R, config={align = "cm"}, nodes={
+           {n=G.UIT.O, config={object = dt1}},
+         }},
+         {n=G.UIT.R, config={align = "cm"}, nodes={
+           {n=G.UIT.O, config={object = dt2}},
+         }},
+       }},
+     }}
+   return extras
 end
 
 function RF.open._create_shop_option()
    RF.open.dynamic_values.shop_text = localize('$') .. G.GAME.RFOD_SETTINGS.shop_cost
    RF.open.dynamic_values.skip_text = localize('$') .. G.GAME.RFOD_SETTINGS.skip_cost
+   G.GAME.round_resets.blind_tags = G.GAME.round_resets.blind_tags or {}
+   local _tag = Tag(G.GAME.round_resets.blind_tags['Big'], nil, 'Big')
+   local _tag_ui, _tag_sprite = _tag:generate_UI()
    local shop_color = G.C.GOLD
-   return {
-      n = G.UIT.R,
-      config = { align = "cm", padding = 0.07 },
-      nodes = {
-         {
-            n = G.UIT.R,
-            config = { align = "cm", colour = mix_colours(G.C.BLACK, G.C.L_BLACK, 0.5), r = 0.1, outline = 1, outline_colour = G.C.L_BLACK, padding = 0.2 },
-            nodes = {
-               {
-                  n = G.UIT.R,
-                  config = { align = "cm" },
-                  nodes = {
-                     { n = G.UIT.O, config = { object = DynaText({ string = "SHOP", colours = { G.C.WHITE }, shadow = true, float = true, y_offset = -4, scale = 0.45, maxw = 2.8 }) } },
-                  }
-               },
-               {
-                  n = G.UIT.R,
-                  config = {
-                     id = 'enter_shop_button',
-                     align = "cm",
-                     colour = shop_color,
-                     minh = 0.6,
-                     minw = 2.7,
-                     outline = 1,
-                     outline_colour = darken(shop_color, 0.3),
-                     padding = 0.07,
-                     r = 0.1,
-                     shadow = true,
-                     hover = true,
-                     one_press = true,
-                     func = 'can_enter_shop',
-                     button = 'enter_shop',
-                     maxw = 2.7
-                  },
-                  nodes = {
-                     {
-                        n = G.UIT.C,
-                        config = { align = "cl", minw = 1.0 },
-                        nodes = {
-                           { n = G.UIT.T, config = { text = localize('b_open'), scale = 0.45, colour = G.C.UI.TEXT_LIGHT, shadow = true } }
-                        }
-                     },
-                     {
-                        n = G.UIT.C,
-                        config = { align = "cr", minw = 1.0 },
-                        nodes = {
-                           { n = G.UIT.T, config = { ref_table = RF.open.dynamic_values, ref_value = "shop_text", scale = 0.45, colour = G.C.UI.TEXT_LIGHT, shadow = true } }
-                        }
-                     },
-                  }
-               },
-            }
-         },
-         {
-            n = G.UIT.R,
-            config = { align = "cm" },
-            nodes = {
-               { n = G.UIT.T, config = { text = "SPACE", scale = 0.1, colour = G.C.CLEAR, shadow = true } },
-            }
-         },
-         {
-            n = G.UIT.R,
-            config = { align = "cm", colour = mix_colours(G.C.BLACK, G.C.L_BLACK, 0.5), r = 0.1, outline = 1, outline_colour = G.C.L_BLACK, padding = 0.2 },
-            nodes = {
-               {
-                  n = G.UIT.R,
-                  config = { align = "cm" },
-                  nodes = {
-                     { n = G.UIT.O, config = { object = DynaText({ string = localize('b_skip_blind'), colours = { G.C.WHITE }, shadow = true, float = true, y_offset = -4, scale = 0.45, maxw = 2.8 }) } },
-                  }
-               },
-               {
-                  n = G.UIT.R,
-                  config = {
-                     id = 'skip_blind_button',
-                     align = "cm",
-                     colour = shop_color,
-                     minh = 0.6,
-                     minw = 2.7,
-                     outline = 1,
-                     outline_colour = darken(shop_color, 0.3),
-                     padding = 0.07,
-                     r = 0.1,
-                     shadow = true,
-                     hover = true,
-                     func = 'can_skip_blind',
-                     button = 'skip_blind',
-                     maxw = 2.7
-                  },
-                  nodes = {
-                     {
-                        n = G.UIT.C,
-                        config = { align = "cl", minw = 1.0 },
-                        nodes = {
-                           { n = G.UIT.T, config = { text = localize('b_skip'), scale = 0.45, colour = G.C.UI.TEXT_LIGHT, shadow = true } }
-                        }
-                     },
-                     {
-                        n = G.UIT.C,
-                        config = { align = "cr", minw = 1.0 },
-                        nodes = {
-                           { n = G.UIT.T, config = { id = 'tag_container_fake', ref_table = RF.open.dynamic_values, ref_value = "skip_text", scale = 0.45, colour = G.C.UI.TEXT_LIGHT, shadow = true } }
-                        }
-                     },
-                  }
-               },
-            }
-         }
-      }
-   }
+   return { n = G.UIT.R, config = { align = "cm", padding = 0.07 }, nodes = {
+      {n = G.UIT.R, config = { align = "cm", colour = mix_colours(G.C.BLACK, G.C.L_BLACK, 0.5), r = 0.1, outline = 1, outline_colour = G.C.L_BLACK, padding = 0.2 }, nodes = {
+         { n = G.UIT.R, config = { align = "cm" }, nodes = {
+            { n = G.UIT.O, config = { object = DynaText({ string = "SHOP", colours = { G.C.WHITE }, shadow = true, float = true, y_offset = -4, scale = 0.45, maxw = 2.8 }) } },
+         }},
+         { n = G.UIT.R, config = { id = 'enter_shop_button', align = "cm", colour = shop_color, minh = 0.6, minw = 2.7, outline = 1, outline_colour = darken(shop_color, 0.3), 
+                                    padding = 0.07, r = 0.1, shadow = true, hover = true, one_press = true, func = 'can_enter_shop', button = 'enter_shop', maxw = 2.7 }, nodes = {
+            { n = G.UIT.C, config = { align = "cl", minw = 1.0 }, nodes = {
+               { n = G.UIT.T, config = { text = localize('b_open'), scale = 0.45, colour = G.C.UI.TEXT_LIGHT, shadow = true } }
+            }},
+            { n = G.UIT.C, config = { align = "cr", minw = 1.0 }, nodes = {
+               { n = G.UIT.T, config = { ref_table = RF.open.dynamic_values, ref_value = "shop_text", scale = 0.45, colour = G.C.UI.TEXT_LIGHT, shadow = true } }
+            }},
+         }},
+      }},
+      { n = G.UIT.R, config = { id = 'blind_extras', align = "cm" }, nodes = {
+         { n = G.UIT.R, config = { align = "cm" }, nodes = {
+            { n = G.UIT.R, config = { align = 'tm', minh = 0.65 }, nodes = {
+               { n = G.UIT.T, config = { text = localize('k_or'), scale = 0.55, colour = G.C.WHITE, shadow = true } },
+            }},
+            {n = G.UIT.R, config = { align = "cm", colour = mix_colours(G.C.BLACK, G.C.L_BLACK, 0.5), r = 0.1, outline = 1, outline_colour = G.C.L_BLACK, padding = 0.2 }, nodes = {
+               {n=G.UIT.R, config={id = 'tag_container', ref_table = _tag, align = "cm"}, nodes={
+                  {n=G.UIT.R, config={id = 'tag_Big', align = "cm", r = 0.1, padding = 0.1, minw = 1, can_collide = true, ref_table = _tag_sprite}, nodes={
+                     {n=G.UIT.C, config={id = 'tag_desc', align = "cm", minh = 1}, nodes={
+                     _tag_ui
+                     }},
+                     {n=G.UIT.C, config={id = 'skip_blind_button', align = "cm", colour = G.C.UI.BACKGROUND_INACTIVE, minh = 1.0, minw = 2, maxw = 2, padding = 0.07, r = 0.1, shadow = true, hover = true, button = 'skip_blind', func = 'can_skip_blind', ref_table = _tag}, nodes={
+                        {n=G.UIT.R, config={align = "cm", minw = 1, can_collide = true}, nodes={
+                           { n = G.UIT.T, config = { text = localize('b_skip_blind'), scale = 0.45, colour = G.C.UI.TEXT_LIGHT, shadow = true } }
+                        }},
+                        {n=G.UIT.R, config={align = "cm", minw = 1, can_collide = true}, nodes={
+                           { n = G.UIT.T, config = { ref_table = RF.open.dynamic_values, ref_value = "skip_text", scale = 0.45, colour = G.C.UI.TEXT_LIGHT, shadow = true } },
+                        }},
+                     }},
+                  }},
+               }},
+            }},
+         }},
+      }},
+   }}
 end
 
 -- blind_choice = "Big" or "Small"
@@ -480,41 +415,10 @@ end
 function RF.open._add_reward_tag(config)
    if config.name == 'blind1' then
       if G.GAME.round_resets.blind_states.Roaming == 'Defeated' then
+         -- joker slot
          G.GAME.round_resets.blind_states.Roaming = 'Upcoming'
-         G.GAME.round_resets.blind_tags = G.GAME.round_resets.blind_tags or {}
-         if not G.GAME.round_resets.blind_tags.Big then return nil end
-         local _tag = Tag(G.GAME.round_resets.blind_tags.Big, nil, 'Big')
-         local _tag_ui, _tag_sprite = _tag:generate_UI()
-         _tag_sprite.states.collide.can = true
-
-         G.E_MANAGER:add_event(Event({
-            trigger = 'before',
-            delay = 0.38,
-            func = function()
-               G.round_eval:add_child(
-                  {
-                     n = G.UIT.R,
-                     config = { align = "cm", id = 'reward_tag_blind1', r = 0.1, padding = 0.1, minw = 1, can_collide = true, ref_table = _tag_sprite, ref2_table = _tag },
-                     nodes = {
-                        {
-                           n = G.UIT.C,
-                           config = { id = 'tag_desc', align = "cm", minh = 1 },
-                           nodes = {
-                              _tag_ui
-                           }
-                        }
-                     }
-                  },
-                  G.round_eval:get_UIE_by_ID('dollar_blind1'))
-               play_sound('generic1')
-               return true
-            end
-         }))
-
-         G.GAME.round_resets.blind_tags.Big = get_next_tag_key()
-      elseif G.GAME.round_resets.blind_states.Boss == 'Defeated' then
-         G.GAME.round_resets.blind_states.Roaming = 'Upcoming'
-         local temp_text = localize { type = 'raw_descriptions', set = 'Edition', vars = { 1 }, key = (G.GAME.round_resets.blind_ante % 2 == 1) and 'e_negative' or 'e_negative_consumable' }
+         G.GAME.round_resets.blind_states.Roaming2 = 'Upcoming'
+         local temp_text = localize { type = 'raw_descriptions', set = 'Edition', vars = { 1 }, key = 'e_negative' }
              [1]
          G.E_MANAGER:add_event(Event({
             trigger = 'before',
@@ -523,7 +427,29 @@ function RF.open._add_reward_tag(config)
                G.round_eval:add_child(
                   {
                      n = G.UIT.R,
-                     config = { align = "cm", id = 'dollar_row_boss_bonus_blind1', key = (G.GAME.round_resets.blind_ante % 2 == 1) and 'e_negative' or 'e_negative_consumable' },
+                     config = { align = "cm", id = 'dollar_row_boss_bonus_blind1', key = 'e_negative' },
+                     nodes = {
+                        { n = G.UIT.O, config = { object = DynaText({ string = temp_text, colours = { G.C.MONEY }, shadow = true, pop_in = 0, scale = 0.45, float = true }) } }
+                     }
+                  },
+                  G.round_eval:get_UIE_by_ID('dollar_blind1'))
+               return true
+            end
+         }))
+      elseif G.GAME.round_resets.blind_states.Roaming2 == 'Defeated' then
+         -- consumable slot
+         G.GAME.round_resets.blind_states.Roaming = 'Upcoming'
+         G.GAME.round_resets.blind_states.Roaming2 = 'Upcoming'
+         local temp_text = localize { type = 'raw_descriptions', set = 'Edition', vars = { 1 }, key = 'e_negative_consumable' }
+             [1]
+         G.E_MANAGER:add_event(Event({
+            trigger = 'before',
+            delay = 0.38,
+            func = function()
+               G.round_eval:add_child(
+                  {
+                     n = G.UIT.R,
+                     config = { align = "cm", id = 'dollar_row_boss_bonus_blind1', key = 'e_negative_consumable' },
                      nodes = {
                         { n = G.UIT.O, config = { object = DynaText({ string = temp_text, colours = { G.C.MONEY }, shadow = true, pop_in = 0, scale = 0.45, float = true }) } }
                      }
